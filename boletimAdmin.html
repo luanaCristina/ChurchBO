@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin do Boletim do Culto</title>
+    <!-- Chosen Palette: Indigo and Teal for accents, with a neutral gray background for the admin interface. -->
+    <!-- Application Structure Plan: A single-page application designed as an administration panel. It features distinct sections for managing different parts of the bulletin: Culto Noite, Culto Manhã, Leitura Bíblica, Cânticos Congregacionais, Cantor Cristão, Músicas de Louvor, and Agenda da Semana. Each section provides input fields (textareas for multi-line content, input fields for single lines) and buttons to save the data to Firestore. Song sections include dynamic add/remove functionality for individual songs. This structure was chosen to provide a clear, organized, and intuitive interface for content editors, allowing them to easily navigate and update specific bulletin components. -->
+    <!-- Visualization & Content Choices: 
+        - Report Info: All bulletin details. Goal: Allow easy editing and saving. Viz/Method: HTML forms with textareas and input fields. Interaction: Input text, click "Salvar" buttons. Justification: Forms are the standard for data input. Library: Vanilla JS for form handling, Firebase Firestore for data persistence.
+        - Report Info: Song lists. Goal: Manage multiple songs. Viz/Method: Dynamic list of input fields/textareas for each song. Interaction: "Adicionar Cântico", "Remover Cântico" buttons. Justification: Provides flexibility to add/remove songs without hardcoding. Library: Vanilla JS.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6; /* gray-100 */
+            color: #1f2937; /* gray-800 */
+        }
+        .container {
+            max-width: 960px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .admin-card {
+            background-color: #ffffff;
+            border-radius: 1rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+        .form-label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: #374151; /* gray-700 */
+        }
+        .form-input, .form-textarea {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #d1d5db; /* gray-300 */
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+            font-size: 1rem;
+            color: #4b5563; /* gray-600 */
+        }
+        .form-textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+        .btn-primary {
+            background-color: #4f46e5; /* indigo-600 */
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s ease-in-out;
+            border: none;
+        }
+        .btn-primary:hover {
+            background-color: #4338ca; /* indigo-700 */
+        }
+        .btn-secondary {
+            background-color: #6b7280; /* gray-500 */
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s ease-in-out;
+            border: none;
+        }
+        .btn-secondary:hover {
+            background-color: #4b5563; /* gray-600 */
+        }
+        .btn-danger {
+            background-color: #ef4444; /* red-500 */
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s ease-in-out;
+            border: none;
+        }
+        .btn-danger:hover {
+            background-color: #dc2626; /* red-600 */
+        }
+        .message {
+            margin-top: 1rem;
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            font-weight: 500;
+        }
+        .message.success {
+            background-color: #d1fae5; /* green-100 */
+            color: #065f46; /* green-800 */
+        }
+        .message.error {
+            background-color: #fee2e2; /* red-100 */
+            color: #991b1b; /* red-800 */
+        }
+        .loading-spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-left-color: #4f46e5;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            vertical-align: middle;
+            margin-left: 0.5rem;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="p-4">
+    <header class="text-center py-8 bg-white shadow-sm rounded-b-xl mb-8">
+        <h1 class="text-4xl font-bold text-indigo-700">Painel de Administração do Boletim</h1>
+        <p class="text-lg text-gray-600 mt-2">Gerencie o conteúdo do boletim semanal da igreja.</p>
+        <div id="authStatus" class="mt-4 text-sm text-gray-500">Autenticando...</div>
+    </header>
+
+    <main class="container">
+
+        <!-- Culto Noite -->
+        <section id="admin-culto-noite" class="admin-card">
+            <h2 class="text-2xl font-bold mb-6 text-indigo-600">Boletim do Culto Noite 🌙</h2>
+            <form id="formCultoNoite">
+                <div class="mb-4">
+                    <label for="noitePreludio" class="form-label">Prelúdio</label>
+                    <input type="text" id="noitePreludio" class="form-input" placeholder="Ex: Instrumental">
+                </div>
+                <div class="mb-4">
+                    <label for="noiteOracao" class="form-label">Oração</label>
+                    <input type="text" id="noiteOracao" class="form-input" placeholder="Ex: Oração">
+                </div>
+                <div class="mb-4">
+                    <label for="noiteAvisos" class="form-label">Avisos e Comunicações</label>
+                    <input type="text" id="noiteAvisos" class="form-input" placeholder="Ex: Avisos e comunicações">
+                </div>
+                <div class="mb-4">
+                    <label for="noiteCanticos" class="form-label">Cânticos Congregacionais</label>
+                    <input type="text" id="noiteCanticos" class="form-input" placeholder="Ex: Cânticos congregacionais">
+                </div>
+                <div class="mb-4">
+                    <label for="noiteMomentoLouvor" class="form-label">Momento de Louvor</label>
+                    <input type="text" id="noiteMomentoLouvor" class="form-input" placeholder="Ex: Grupo de louvor/Coral/Individual">
+                </div>
+                <div class="mb-4">
+                    <label for="noiteSaudacoes" class="form-label">Saudações aos Visitantes</label>
+                    <input type="text" id="noiteSaudacoes" class="form-input" placeholder="Ex: Saudações aos visitantes">
+                </div>
+                <div class="mb-4">
+                    <label for="noiteLeituraBiblica" class="form-label">Leitura Bíblica Responsiva</label>
+                    <input type="text" id="noiteLeituraBiblica" class="form-input" placeholder="Ex: Leitura Bíblica responsiva">
+                </div>
+                <div class="mb-4">
+                    <label for="noiteMomentoLouvor2" class="form-label">Momento de Louvor (2)</label>
+                    <input type="text" id="noiteMomentoLouvor2" class="form-input" placeholder="Ex: Grupo de louvor/Coral/Individual">
+                </div>
+                <div class="mb-4">
+                    <label for="noiteDizimosOfertas" class="form-label">Dedicação de Dízimos e Ofertas</label>
+                    <input type="text" id="noiteDizimosOfertas" class="form-input" placeholder="Ex: Dedicação de Dízimos e ofertas">
+                </div>
+                <div class="mb-4">
+                    <label for="noiteOracaoAgradecimento" class="form-label">Oração de Agradecimento (Dízimos e Ofertas)</label>
+                    <input type="text" id="noiteOracaoAgradecimento" class="form-input" placeholder="Ex: Oração de agradecimento aos dízimos e ofertas">
+                </div>
+                <div class="mb-4">
+                    <label for="noiteOracaoGratidao" class="form-label">Oração de Gratidão</label>
+                    <input type="text" id="noiteOracaoGratidao" class="form-input" placeholder="Ex: Oração de gratidão">
+                </div>
+                <div class="mb-4">
+                    <label for="noiteMensagem" class="form-label">Mensagem</label>
+                    <input type="text" id="noiteMensagem" class="form-input" placeholder="Ex: Mensagem - pastor">
+                </div>
+                <div class="mb-4">
+                    <label for="noiteMomentoLouvorCantor" class="form-label">Momento de Louvor (Cantor Cristão)</label>
+                    <input type="text" id="noiteMomentoLouvorCantor" class="form-input" placeholder="Ex: Momento de Louvor - Cantor Cristão">
+                </div>
+                <div class="mb-4">
+                    <label for="noiteOracaoPedidos" class="form-label">Oração dos Pedidos de Oração</label>
+                    <input type="text" id="noiteOracaoPedidos" class="form-input" placeholder="Ex: Oração dos pedidos de oração">
+                </div>
+                <div class="mb-4">
+                    <label for="noiteOracaoBencao" class="form-label">Oração e Bênção Apostólica</label>
+                    <input type="text" id="noiteOracaoBencao" class="form-input" placeholder="Ex: Oração e bênção apostólica">
+                </div>
+                <div class="mb-4">
+                    <label for="noitePosludio" class="form-label">Poslúdio</label>
+                    <input type="text" id="noitePosludio" class="form-input" placeholder="Ex: Poslúdio">
+                </div>
+                <button type="submit" class="btn-primary">Salvar Culto Noite <span id="spinnerNoite" class="loading-spinner hidden"></span></button>
+                <div id="messageNoite" class="message hidden"></div>
+            </form>
+        </section>
+
+        <!-- Culto Manhã -->
+        <section id="admin-culto-manha" class="admin-card">
+            <h2 class="text-2xl font-bold mb-6 text-indigo-600">Boletim do Culto Manhã ☀️</h2>
+            <form id="formCultoManha">
+                <div class="mb-4">
+                    <label for="manhaPreludio" class="form-label">Prelúdio</label>
+                    <input type="text" id="manhaPreludio" class="form-input" placeholder="Ex: Instrumental">
+                </div>
+                <div class="mb-4">
+                    <label for="manhaOracao" class="form-label">Oração</label>
+                    <input type="text" id="manhaOracao" class="form-input" placeholder="Ex: Oração">
+                </div>
+                <div class="mb-4">
+                    <label for="manhaAvisos" class="form-label">Avisos e Comunicações</label>
+                    <input type="text" id="manhaAvisos" class="form-input" placeholder="Ex: Avisos e comunicações">
+                </div>
+                <div class="mb-4">
+                    <label for="manhaCanticos" class="form-label">Cânticos Congregacionais</label>
+                    <input type="text" id="manhaCanticos" class="form-input" placeholder="Ex: Cânticos congregacionais">
+                </div>
+                <div class="mb-4">
+                    <label for="manhaMomentoLouvor" class="form-label">Momento de Louvor</label>
+                    <input type="text" id="manhaMomentoLouvor" class="form-input" placeholder="Ex: Grupo de louvor/Coral/Individual">
+                </div>
+                <div class="mb-4">
+                    <label for="manhaSaudacoes" class="form-label">Saudações aos Visitantes</label>
+                    <input type="text" id="manhaSaudacoes" class="form-input" placeholder="Ex: Saudações aos visitantes">
+                </div>
+                <div class="mb-4">
+                    <label for="manhaLeituraBiblica" class="form-label">Leitura Bíblica Responsiva</label>
+                    <input type="text" id="manhaLeituraBiblica" class="form-input" placeholder="Ex: Leitura Bíblica responsiva">
+                </div>
+                <div class="mb-4">
+                    <label for="manhaMomentoLouvor2" class="form-label">Momento de Louvor (2)</label>
+                    <input type="text" id="manhaMomentoLouvor2" class="form-input" placeholder="Ex: Grupo de louvor/Coral/Individual">
+                </div>
+                <div class="mb-4">
+                    <label for="manhaDizimosOfertas" class="form-label">Dedicação de Dízimos e Ofertas</label>
+                    <input type="text" id="manhaDizimosOfertas" class="form-input" placeholder="Ex: Dedicação de Dízimos e ofertas">
+                </div>
+                <div class="mb-4">
+                    <label for="manhaOracaoAgradecimento" class="form-label">Oração de Agradecimento (Dízimos e Ofertas)</label>
+                    <input type="text" id="manhaOracaoAgradecimento" class="form-input" placeholder="Ex: Oração de agradecimento aos dízimos e ofertas">
+                </div>
+                <div class="mb-4">
+                    <label for="manhaOracaoGratidao" class="form-label">Oração de Gratidão</label>
+                    <input type="text" id="manhaOracaoGratidao" class="form-input" placeholder="Ex: Oração de gratidão">
+                </div>
+                <div class="mb-4">
+                    <label for="manhaMensagem" class="form-label">Mensagem</label>
+                    <input type="text" id="manhaMensagem" class="form-input" placeholder="Ex: Mensagem - pastor">
+                </div>
+                <div class="mb-4">
+                    <label for="manhaMomentoLouvorCantor" class="form-label">Momento de Louvor (Cantor Cristão)</label>
+                    <input type="text" id="manhaMomentoLouvorCantor" class="form-input" placeholder="Ex: Momento de Louvor - Cantor Cristão">
+                </div>
+                <div class="mb-4">
+                    <label for="manhaOracaoPedidos" class="form-label">Oração dos Pedidos de Oração</label>
+                    <input type="text" id="manhaOracaoPedidos" class="form-input" placeholder="Ex: Oração dos pedidos de oração">
+                </div>
+                <div class="mb-4">
+                    <label for="manhaOracaoBencao" class="form-label">Oração e Bênção Apostólica</label>
+                    <input type="text" id="manhaOracaoBencao" class="form-input" placeholder="Ex: Oração e bênção apostólica">
+                </div>
+                <div class="mb-4">
+                    <label for="manhaPosludio" class="form-label">Poslúdio</label>
+                    <input type="text" id="manhaPosludio" class="form-input" placeholder="Ex: Poslúdio">
+                </div>
+                <button type="submit" class="btn-primary">Salvar Culto Manhã <span id="spinnerManha" class="loading-spinner hidden"></span></button>
+                <div id="messageManha" class="message hidden"></div>
+            </form>
+        </section>
+
+        <!-- Leitura Bíblica Responsiva -->
+        <section id="admin-leitura-biblica" class="admin-card">
+            <h2 class="text-2xl font-bold mb-6 text-indigo-600">Leitura Bíblica Responsiva 📖</h2>
+            <form id="formLeituraBiblica">
+                <div class="mb-4">
+                    <label for="leituraVersao" class="form-label">Versão da Bíblia</label>
+                    <input type="text" id="leituraVersao" class="form-input" placeholder="Ex: Habacuque 3:1-3 - Versão da Bíblia NAA">
+                </div>
+                <div class="mb-4">
+                    <label for="leituraDirigente" class="form-label">Texto do Dirigente</label>
+                    <textarea id="leituraDirigente" class="form-textarea" placeholder="Ex: 3 1Oração do profeta Habacuque sob a forma de canto.&#10;2 Senhor, tenho ouvido a tua fama,..."></textarea>
+                </div>
+                <div class="mb-4">
+                    <label for="leituraTodos" class="form-label">Texto de Todos</label>
+                    <textarea id="leituraTodos" class="form-textarea" placeholder="Ex: 3 Deus vem de Temã,&#10;o Santo vem do monte Parã...."></textarea>
+                </div>
+                <div class="mb-4">
+                    <label for="leituraFonte" class="form-label">Fonte da Leitura</label>
+                    <textarea id="leituraFonte" class="form-textarea" placeholder="Ex: João Ferreira de Almeida, trad., Nova Almeida Atualizada,..."></textarea>
+                </div>
+                <button type="submit" class="btn-primary">Salvar Leitura Bíblica <span id="spinnerLeitura" class="loading-spinner hidden"></span></button>
+                <div id="messageLeitura" class="message hidden"></div>
+            </form>
+        </section>
+
+        <!-- Cânticos Congregacionais -->
+        <section id="admin-canticos-congregacionais" class="admin-card">
+            <h2 class="text-2xl font-bold mb-6 text-indigo-600">Cânticos Congregacionais 🎶</h2>
+            <div id="canticosCongregacionaisList">
+                <!-- Cânticos serão carregados aqui -->
+            </div>
+            <button type="button" class="btn-secondary mt-4" onclick="addSongForm('canticosCongregacionais')">Adicionar Cântico</button>
+        </section>
+
+        <!-- Cantor Cristão -->
+        <section id="admin-cantor-cristao" class="admin-card">
+            <h2 class="text-2xl font-bold mb-6 text-indigo-600">Cantor Cristão 📖🎶</h2>
+            <div id="cantorCristaoList">
+                <!-- Cânticos serão carregados aqui -->
+            </div>
+            <button type="button" class="btn-secondary mt-4" onclick="addSongForm('cantorCristao')">Adicionar Cântico</button>
+        </section>
+
+        <!-- Músicas do Louvor -->
+        <section id="admin-musicas-louvor" class="admin-card">
+            <h2 class="text-2xl font-bold mb-6 text-indigo-600">Músicas do Louvor 🎤</h2>
+            <div id="musicasLouvorList">
+                <!-- Cânticos serão carregados aqui -->
+            </div>
+            <button type="button" class="btn-secondary mt-4" onclick="addSongForm('musicasLouvor')">Adicionar Cântico</button>
+        </section>
+
+        <!-- Agenda da Semana -->
+        <section id="admin-agenda-semana" class="admin-card">
+            <h2 class="text-2xl font-bold mb-6 text-indigo-600">Agenda da Semana 🗓️</h2>
+            <form id="formAgendaSemana">
+                <div class="mb-4">
+                    <label for="agendaDomingo" class="form-label">Culto Domingo</label>
+                    <input type="text" id="agendaDomingo" class="form-input" placeholder="Ex: 10:30h e 17:30h">
+                </div>
+                <div class="mb-4">
+                    <label for="agendaEBD" class="form-label">EBD</label>
+                    <input type="text" id="agendaEBD" class="form-input" placeholder="Ex: Domingo 9h às 10h30">
+                </div>
+                <div class="mb-4">
+                    <label for="agendaQuinta" class="form-label">Cultos Quinta</label>
+                    <input type="text" id="agendaQuinta" class="form-input" placeholder="Ex: 19:30h">
+                </div>
+                <div class="mb-4">
+                    <label for="agendaCeia" class="form-label">Ceia</label>
+                    <input type="text" id="agendaCeia" class="form-input" placeholder="Ex: [Informar data e horário, se aplicável]">
+                </div>
+                <div class="mb-4">
+                    <label for="agendaSegunda" class="form-label">Segunda</label>
+                    <input type="text" id="agendaSegunda" class="form-input" placeholder="Ex: [Atividade]">
+                </div>
+                <div class="mb-4">
+                    <label for="agendaTerca" class="form-label">Terça</label>
+                    <input type="text" id="agendaTerca" class="form-input" placeholder="Ex: [Atividade]">
+                </div>
+                <div class="mb-4">
+                    <label for="agendaQuarta" class="form-label">Quarta</label>
+                    <input type="text" id="agendaQuarta" class="form-input" placeholder="Ex: [Atividade]">
+                </div>
+                <div class="mb-4">
+                    <label for="agendaSexta" class="form-label">Sexta</label>
+                    <input type="text" id="agendaSexta" class="form-input" placeholder="Ex: [Atividade]">
+                </div>
+                <div class="mb-4">
+                    <label for="agendaSabado" class="form-label">Sábado</label>
+                    <input type="text" id="agendaSabado" class="form-input" placeholder="Ex: [Atividade]">
+                </div>
+                <button type="submit" class="btn-primary">Salvar Agenda <span id="spinnerAgenda" class="loading-spinner hidden"></span></button>
+                <div id="messageAgenda" class="message hidden"></div>
+            </form>
+        </section>
+
+    </main>
+
+    <footer class="text-center py-8 text-gray-500 text-sm">
+        <p>Painel de Administração do Boletim - Desenvolvido para a comunidade.</p>
+    </footer>
+
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, collection, query, getDocs, addDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Global variables for Firebase
+        let app;
+        let db;
+        let auth;
+        let userId;
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        const authStatusElement = document.getElementById('authStatus');
+
+        // Initialize Firebase
+        if (Object.keys(firebaseConfig).length > 0) {
+            app = initializeApp(firebaseConfig);
+            db = getFirestore(app);
+            auth = getAuth(app);
+
+            onAuthStateChanged(auth, async (user) => {
+                if (user) {
+                    userId = user.uid;
+                    authStatusElement.textContent = `Autenticado como: ${userId}`;
+                    await loadAllData(); // Load data after authentication
+                } else {
+                    authStatusElement.textContent = 'Não autenticado. Tentando autenticação anônima...';
+                    try {
+                        if (initialAuthToken) {
+                            await signInWithCustomToken(auth, initialAuthToken);
+                        } else {
+                            await signInAnonymously(auth);
+                        }
+                    } catch (error) {
+                        console.error("Erro na autenticação:", error);
+                        authStatusElement.textContent = `Erro na autenticação: ${error.message}`;
+                    }
+                }
+            });
+        } else {
+            authStatusElement.textContent = 'Firebase Config não fornecida. Funcionalidade de persistência desabilitada.';
+            console.error("Firebase Config não fornecida. Por favor, certifique-se de que __firebase_config está definido no ambiente.");
+        }
+
+        // Helper function to show messages
+        function showMessage(elementId, text, type) {
+            const element = document.getElementById(elementId);
+            element.textContent = text;
+            element.className = `message ${type}`;
+            element.classList.remove('hidden');
+            setTimeout(() => {
+                element.classList.add('hidden');
+            }, 5000);
+        }
+
+        // Helper function to toggle spinner
+        function toggleSpinner(spinnerId, show) {
+            document.getElementById(spinnerId).classList.toggle('hidden', !show);
+        }
+
+        // --- Data Loading Functions ---
+        async function loadDocument(collectionName, docId, formId, fields, spinnerId) {
+            if (!db || !userId) return;
+            toggleSpinner(spinnerId, true);
+            try {
+                const docRef = doc(db, `artifacts/${appId}/public/${collectionName}`, docId);
+                const docSnap = await getDoc(docRef);
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    fields.forEach(field => {
+                        const inputElement = document.getElementById(formId + field.charAt(0).toUpperCase() + field.slice(1));
+                        if (inputElement) {
+                            inputElement.value = data[field] || '';
+                        }
+                    });
+                } else {
+                    console.log(`Documento ${docId} em ${collectionName} não encontrado.`);
+                }
+            } catch (e) {
+                console.error(`Erro ao carregar ${collectionName}/${docId}:`, e);
+                showMessage(`message${formId.replace('form', '')}`, `Erro ao carregar dados: ${e.message}`, 'error');
+            } finally {
+                toggleSpinner(spinnerId, false);
+            }
+        }
+
+        async function loadSongs(collectionName, listId) {
+            if (!db || !userId) return;
+            const listElement = document.getElementById(listId);
+            listElement.innerHTML = '<div class="text-center text-gray-500">Carregando cânticos...</div>';
+            try {
+                const q = query(collection(db, `artifacts/${appId}/public/${collectionName}`));
+                const querySnapshot = await getDocs(q);
+                listElement.innerHTML = ''; // Clear loading message
+
+                querySnapshot.forEach((docSnap) => {
+                    const song = docSnap.data();
+                    addSongForm(collectionName, song.title, song.lyrics, docSnap.id);
+                });
+                if (querySnapshot.empty) {
+                    listElement.innerHTML = '<div class="text-center text-gray-500">Nenhum cântico cadastrado.</div>';
+                }
+            } catch (e) {
+                console.error(`Erro ao carregar cânticos de ${collectionName}:`, e);
+                listElement.innerHTML = `<div class="text-center text-red-600">Erro ao carregar cânticos: ${e.message}</div>`;
+            }
+        }
+
+        async function loadAllData() {
+            await loadDocument('boletim', 'cultoNoite', 'noite', ['preludio', 'oracao', 'avisos', 'canticos', 'momentoLouvor', 'saudacoes', 'leituraBiblica', 'momentoLouvor2', 'dizimosOfertas', 'oracaoAgradecimento', 'oracaoGratidao', 'mensagem', 'momentoLouvorCantor', 'oracaoPedidos', 'oracaoBencao', 'posludio'], 'spinnerNoite');
+            await loadDocument('boletim', 'cultoManha', 'manha', ['preludio', 'oracao', 'avisos', 'canticos', 'momentoLouvor', 'saudacoes', 'leituraBiblica', 'momentoLouvor2', 'dizimosOfertas', 'oracaoAgradecimento', 'oracaoGratidao', 'mensagem', 'momentoLouvorCantor', 'oracaoPedidos', 'oracaoBencao', 'posludio'], 'spinnerManha');
+            await loadDocument('boletim', 'leituraBiblica', 'leitura', ['versao', 'dirigente', 'todos', 'fonte'], 'spinnerLeitura');
+            await loadSongs('canticos_congregacionais', 'canticosCongregacionaisList');
+            await loadSongs('cantor_cristao', 'cantorCristaoList');
+            await loadSongs('musicas_louvor', 'musicasLouvorList');
+            await loadDocument('agenda', 'agendaSemana', 'agenda', ['domingo', 'ebd', 'quinta', 'ceia', 'segunda', 'terca', 'quarta', 'sexta', 'sabado'], 'spinnerAgenda');
+        }
+
+        // --- Form Submission Functions ---
+        async function saveDocument(collectionName, docId, formId, fields, spinnerId, messageId) {
+            if (!db || !userId) {
+                showMessage(messageId, 'Erro: Firebase não inicializado ou usuário não autenticado.', 'error');
+                return;
+            }
+            toggleSpinner(spinnerId, true);
+            const dataToSave = {};
+            fields.forEach(field => {
+                const inputElement = document.getElementById(formId + field.charAt(0).toUpperCase() + field.slice(1));
+                if (inputElement) {
+                    dataToSave[field] = inputElement.value;
+                }
+            });
+
+            try {
+                await setDoc(doc(db, `artifacts/${appId}/public/${collectionName}`, docId), dataToSave);
+                showMessage(messageId, 'Dados salvos com sucesso!', 'success');
+            } catch (e) {
+                console.error(`Erro ao salvar ${collectionName}/${docId}:`, e);
+                showMessage(messageId, `Erro ao salvar dados: ${e.message}`, 'error');
+            } finally {
+                toggleSpinner(spinnerId, false);
+            }
+        }
+
+        async function saveSong(collectionName, songData, docId = null) {
+            if (!db || !userId) return;
+            try {
+                if (docId) {
+                    await setDoc(doc(db, `artifacts/${appId}/public/${collectionName}`, docId), songData);
+                } else {
+                    await addDoc(collection(db, `artifacts/${appId}/public/${collectionName}`), songData);
+                }
+                return { success: true };
+            } catch (e) {
+                console.error(`Erro ao salvar cântico em ${collectionName}:`, e);
+                return { success: false, error: e.message };
+            }
+        }
+
+        async function deleteSong(collectionName, docId) {
+            if (!db || !userId) return;
+            try {
+                await deleteDoc(doc(db, `artifacts/${appId}/public/${collectionName}`, docId));
+                return { success: true };
+            } catch (e) {
+                console.error(`Erro ao deletar cântico em ${collectionName}:`, e);
+                return { success: false, error: e.message };
+            }
+        }
+
+        // --- Dynamic Song Form Management ---
+        function addSongForm(collectionType, title = '', lyrics = '', docId = null) {
+            const listElement = document.getElementById(`${collectionType}List`);
+            const songIndex = listElement.children.length; // Simple index for new forms
+
+            const songDiv = document.createElement('div');
+            songDiv.className = 'mb-6 p-4 border border-gray-300 rounded-lg bg-gray-50';
+            songDiv.dataset.docId = docId || ''; // Store Firestore document ID
+
+            songDiv.innerHTML = `
+                <h4 class="font-bold text-lg mb-3 text-indigo-700">${docId ? 'Editar Cântico' : 'Novo Cântico'}</h4>
+                <div class="mb-3">
+                    <label class="form-label">Título do Cântico</label>
+                    <input type="text" class="form-input song-title-input" value="${title}" placeholder="Título do Cântico">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Letra do Cântico</label>
+                    <textarea class="form-textarea song-lyrics-input" placeholder="Letra completa do cântico">${lyrics}</textarea>
+                </div>
+                <div class="flex justify-end gap-2">
+                    <button type="button" class="btn-primary btn-save-song">Salvar</button>
+                    ${docId ? `<button type="button" class="btn-danger btn-delete-song">Excluir</button>` : ''}
+                </div>
+                <div class="message hidden mt-2"></div>
+            `;
+            listElement.appendChild(songDiv);
+
+            const saveButton = songDiv.querySelector('.btn-save-song');
+            saveButton.onclick = async () => {
+                const songTitle = songDiv.querySelector('.song-title-input').value;
+                const songLyrics = songDiv.querySelector('.song-lyrics-input').value;
+                const currentDocId = songDiv.dataset.docId;
+                const messageElement = songDiv.querySelector('.message');
+
+                if (!songTitle.trim() || !songLyrics.trim()) {
+                    showMessageInElement(messageElement, 'Título e letra são obrigatórios.', 'error');
+                    return;
+                }
+
+                const result = await saveSong(collectionType, { title: songTitle, lyrics: songLyrics }, currentDocId);
+                if (result.success) {
+                    showMessageInElement(messageElement, 'Cântico salvo com sucesso!', 'success');
+                    // Reload songs to get new docId for newly added songs
+                    if (!currentDocId) {
+                        await loadSongs(collectionType, `${collectionType}List`);
+                    }
+                } else {
+                    showMessageInElement(messageElement, `Erro ao salvar: ${result.error}`, 'error');
+                }
+            };
+
+            const deleteButton = songDiv.querySelector('.btn-delete-song');
+            if (deleteButton) {
+                deleteButton.onclick = async () => {
+                    const currentDocId = songDiv.dataset.docId;
+                    const messageElement = songDiv.querySelector('.message');
+                    if (confirm('Tem certeza que deseja excluir este cântico?')) {
+                        const result = await deleteSong(collectionType, currentDocId);
+                        if (result.success) {
+                            showMessageInElement(messageElement, 'Cântico excluído!', 'success');
+                            songDiv.remove(); // Remove the form from UI
+                        } else {
+                            showMessageInElement(messageElement, `Erro ao excluir: ${result.error}`, 'error');
+                        }
+                    }
+                };
+            }
+        }
+
+        function showMessageInElement(element, text, type) {
+            element.textContent = text;
+            element.className = `message ${type}`;
+            element.classList.remove('hidden');
+            setTimeout(() => {
+                element.classList.add('hidden');
+            }, 3000);
+        }
+
+        // --- Event Listeners for main forms ---
+        document.getElementById('formCultoNoite').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const fields = ['preludio', 'oracao', 'avisos', 'canticos', 'momentoLouvor', 'saudacoes', 'leituraBiblica', 'momentoLouvor2', 'dizimosOfertas', 'oracaoAgradecimento', 'oracaoGratidao', 'mensagem', 'momentoLouvorCantor', 'oracaoPedidos', 'oracaoBencao', 'posludio'];
+            await saveDocument('boletim', 'cultoNoite', 'noite', fields, 'spinnerNoite', 'messageNoite');
+        });
+
+        document.getElementById('formCultoManha').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const fields = ['preludio', 'oracao', 'avisos', 'canticos', 'momentoLouvor', 'saudacoes', 'leituraBiblica', 'momentoLouvor2', 'dizimosOfertas', 'oracaoAgradecimento', 'oracaoGratidao', 'mensagem', 'momentoLouvorCantor', 'oracaoPedidos', 'oracaoBencao', 'posludio'];
+            await saveDocument('boletim', 'cultoManha', 'manha', fields, 'spinnerManha', 'messageManha');
+        });
+
+        document.getElementById('formLeituraBiblica').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const fields = ['versao', 'dirigente', 'todos', 'fonte'];
+            await saveDocument('boletim', 'leituraBiblica', 'leitura', fields, 'spinnerLeitura', 'messageLeitura');
+        });
+
+        document.getElementById('formAgendaSemana').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const fields = ['domingo', 'ebd', 'quinta', 'ceia', 'segunda', 'terca', 'quarta', 'sexta', 'sabado'];
+            await saveDocument('agenda', 'agendaSemana', 'agenda', fields, 'spinnerAgenda', 'messageAgenda');
+        });
+    </script>
+</body>
+</html>
