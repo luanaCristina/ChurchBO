@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Boletim do Culto Semanal</title>
+    
+    <!-- Chosen Palette: Neutros quentes (Gray/Slate) com acentos em Índigo e Teal. -->
+    <!-- Application Structure Plan: A single-page application with a fixed top navigation bar for quick access to different sections (Culto Noite, Culto Manhã, Cânticos Congregacionais, Cantor Cristão, Músicas de Louvor, Agenda da Semana). The content is organized into distinct, scrollable sections. Song lyrics are presented within collapsible/expandable `details` elements to manage page length. Interactive controls for font size and auto-scroll are provided for song lyrics. A dedicated print button and print-specific CSS ensure optimal output for physical copies. This structure was chosen to provide an intuitive, easy-to-navigate experience for digital consumption while retaining full printability. -->
+    <!-- Visualization & Content Choices: 
+        - Report Info: Service orders (Morning/Evening). Goal: Present the flow of the service clearly. Viz/Method: Ordered lists within distinct sections. Interaction: Direct scrolling to sections via navigation. Justification: Simple, sequential presentation is best for a service order. Library: None (HTML/CSS).
+        - Report Info: Bible reading. Goal: Display responsive reading with roles. Viz/Method: Structured text with `div` elements for roles. Interaction: None (static text). Justification: Clear visual separation of roles enhances readability. Library: None (HTML/CSS).
+        - Report Info: Song lyrics (Congregational, Cantor Cristão, Louvor). Goal: Provide lyrics with readability tools. Viz/Method: Collapsible text blocks (`details`/`summary`). Interaction: Expand/collapse, font size adjustment (JS), auto-scroll (JS). Justification: Collapsible sections prevent overwhelming page length, while font size and auto-scroll enhance accessibility and usability during worship. Library: Vanilla JS.
+        - Report Info: Weekly agenda. Goal: Inform about weekly events. Viz/Method: Simple list. Interaction: None. Justification: A straightforward list is efficient for presenting schedule information. Library: None (HTML/CSS).
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f9fafb; /* gray-50 */
+            color: #374151; /* gray-700 */
+        }
+        .container {
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .section-card {
+            background-color: #ffffff;
+            border-radius: 1rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+        .bible-verse-dirigente {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: #1f2937; /* gray-800 */
+        }
+        .bible-verse-todos {
+            font-style: italic;
+            margin-top: 0.5rem;
+            color: #4b5563; /* gray-600 */
+        }
+        .song-lyrics p {
+            margin-bottom: 0.5rem;
+            line-height: 1.5;
+        }
+        .song-lyrics h4 {
+            font-weight: 600;
+            margin-top: 1rem;
+            margin-bottom: 0.5rem;
+            color: #1f2937;
+        }
+        .song-controls button {
+            background-color: #4f46e5; /* indigo-600 */
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s ease-in-out;
+            border: none;
+        }
+        .song-controls button:hover {
+            background-color: #4338ca; /* indigo-700 */
+        }
+        .song-lyrics {
+            font-size: 1rem; /* Default font size */
+            transition: font-size 0.2s ease-in-out;
+        }
+
+        /* Print styles */
+        @media print {
+            body {
+                background-color: #ffffff;
+                color: #000000;
+                margin: 0;
+                padding: 0;
+            }
+            header, .print-button-container, .song-controls {
+                display: none; /* Hide navigation and controls */
+            }
+            .section-card {
+                box-shadow: none;
+                border: 1px solid #e5e7eb; /* Light border for separation */
+                margin-bottom: 1rem;
+                page-break-inside: avoid; /* Avoid breaking cards across pages */
+            }
+            h1, h2, h3, h4 {
+                color: #000000 !important; /* Ensure black text for titles */
+            }
+            a {
+                text-decoration: none; /* Remove underlines from links */
+                color: #000000; /* Black links */
+            }
+            .song-lyrics {
+                font-size: 12pt !important; /* Standard print font size */
+            }
+            .bible-verse-dirigente, .bible-verse-todos {
+                color: #000000 !important;
+            }
+            .list-disc li::before {
+                color: #000000 !important;
+            }
+        }
+    </style>
+</head>
+<body class="p-4">
+    <header class="bg-white/80 backdrop-blur-lg shadow-sm sticky top-0 z-50 py-3">
+        <nav class="container mx-auto flex flex-wrap justify-center md:justify-between items-center text-sm md:text-base">
+            <h1 class="text-xl md:text-2xl font-bold text-indigo-700 mb-2 md:mb-0">Boletim do Culto 📖</h1>
+            <div class="flex flex-wrap justify-center gap-x-4 gap-y-2">
+                <a href="#culto-noite" class="text-gray-700 hover:text-indigo-700 font-medium transition-colors">Culto Noite</a>
+                <a href="#culto-manha" class="text-gray-700 hover:text-indigo-700 font-medium transition-colors">Culto Manhã</a>
+                <a href="#canticos-congregacionais" class="text-gray-700 hover:text-indigo-700 font-medium transition-colors">Cânticos</a>
+                <a href="#cantor-cristao" class="text-gray-700 hover:text-indigo-700 font-medium transition-colors">Cantor Cristão</a>
+                <a href="#musicas-louvor" class="text-gray-700 hover:text-indigo-700 font-medium transition-colors">Louvor</a>
+                <a href="#agenda-semana" class="text-gray-700 hover:text-indigo-700 font-medium transition-colors">Agenda</a>
+            </div>
+        </nav>
+    </header>
+
+    <main class="container mt-8">
+
+        <!-- Boletim do Culto Noite -->
+        <section id="culto-noite" class="section-card">
+            <h2 class="text-3xl font-bold text-center mb-6 text-indigo-700">Boletim do Culto Noite 🌙</h2>
+            <ol id="order-noite" class="list-decimal list-inside space-y-2 text-lg">
+                <!-- Conteúdo será carregado dinamicamente -->
+                <div class="text-center text-gray-500">Carregando boletim da noite...</div>
+            </ol>
+        </section>
+
+        <!-- Boletim do Culto Manhã -->
+        <section id="culto-manha" class="section-card">
+            <h2 class="text-3xl font-bold text-center mb-6 text-indigo-700">Boletim do Culto Manhã ☀️</h2>
+            <ol id="order-manha" class="list-decimal list-inside space-y-2 text-lg">
+                <!-- Conteúdo será carregado dinamicamente -->
+                <div class="text-center text-gray-500">Carregando boletim da manhã...</div>
+            </ol>
+        </section>
+
+        <!-- Controles de Cânticos (globais para as seções de cânticos) -->
+        <div class="section-card song-controls flex flex-wrap justify-center gap-4 mb-8">
+            <button onclick="adjustFontSize(1)">A+ Fonte</button>
+            <button onclick="adjustFontSize(-1)">A- Fonte</button>
+            <button onclick="toggleAutoScroll()">Rolagem Automática</button>
+            <button onclick="window.print()">Imprimir Boletim</button>
+        </div>
+
+        <!-- Cânticos Congregacionais -->
+        <section id="canticos-congregacionais" class="section-card">
+            <h2 class="text-3xl font-bold text-center mb-6 text-indigo-700">Cânticos Congregacionais 🎶</h2>
+            <div id="canticosCongregacionaisList">
+                <!-- Cânticos serão carregados dinamicamente -->
+                <div class="text-center text-gray-500">Carregando cânticos congregacionais...</div>
+            </div>
+        </section>
+
+        <!-- Lista do Cantor Cristão -->
+        <section id="cantor-cristao" class="section-card">
+            <h2 class="text-3xl font-bold text-center mb-6 text-indigo-700">Cantor Cristão 📖🎶</h2>
+            <div id="cantorCristaoList">
+                <!-- Cânticos serão carregados dinamicamente -->
+                <div class="text-center text-gray-500">Carregando cânticos do Cantor Cristão...</div>
+            </div>
+        </section>
+
+        <!-- Lista das Músicas do Louvor -->
+        <section id="musicas-louvor" class="section-card">
+            <h2 class="text-3xl font-bold text-center mb-6 text-indigo-700">Músicas do Louvor 🎤</h2>
+            <div id="musicasLouvorList">
+                <!-- Cânticos serão carregados dinamicamente -->
+                <div class="text-center text-gray-500">Carregando músicas de louvor...</div>
+            </div>
+        </section>
+
+        <!-- Agenda da Semana -->
+        <section id="agenda-semana" class="section-card">
+            <h2 class="text-3xl font-bold text-center mb-6 text-indigo-700">Agenda da Semana 🗓️</h2>
+            <ul id="agendaSemanaList" class="list-disc list-inside space-y-2 text-lg">
+                <!-- Conteúdo será carregado dinamicamente -->
+                <div class="text-center text-gray-500">Carregando agenda da semana...</div>
+            </ul>
+        </section>
+
+    </main>
+
+    <footer class="text-center py-8 text-gray-500 text-sm">
+        <p>Boletim do Culto Web - Criado para a comunidade.</p>
+    </footer>
+
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, collection, query, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Global variables for Firebase
+        let app;
+        let db;
+        let auth;
+        let userId;
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        // Initialize Firebase
+        if (Object.keys(firebaseConfig).length > 0) {
+            app = initializeApp(firebaseConfig);
+            db = getFirestore(app);
+            auth = getAuth(app);
+
+            onAuthStateChanged(auth, async (user) => {
+                if (user) {
+                    userId = user.uid;
+                    await loadAllData(); // Load data after authentication
+                } else {
+                    try {
+                        if (initialAuthToken) {
+                            await signInWithCustomToken(auth, initialAuthToken);
+                        } else {
+                            await signInAnonymously(auth);
+                        }
+                    } catch (error) {
+                        console.error("Erro na autenticação:", error);
+                        // Handle authentication error for public view
+                    }
+                }
+            });
+        } else {
+            console.error("Firebase Config não fornecida. Funcionalidade de persistência desabilitada.");
+            // Display static content or an error message if Firebase is not configured
+            document.getElementById('order-noite').innerHTML = '<li class="text-red-500">Erro: Configuração do Firebase ausente.</li>';
+            document.getElementById('order-manha').innerHTML = '<li class="text-red-500">Erro: Configuração do Firebase ausente.</li>';
+            document.getElementById('canticosCongregacionaisList').innerHTML = '<div class="text-center text-red-500">Erro: Configuração do Firebase ausente.</div>';
+            document.getElementById('cantorCristaoList').innerHTML = '<div class="text-center text-red-500">Erro: Configuração do Firebase ausente.</div>';
+            document.getElementById('musicasLouvorList').innerHTML = '<div class="text-center text-red-500">Erro: Configuração do Firebase ausente.</div>';
+            document.getElementById('agendaSemanaList').innerHTML = '<li class="text-red-500">Erro: Configuração do Firebase ausente.</li>';
+        }
+
+        // --- Data Loading Functions ---
+        async function loadCultoOrder(cultoType, elementId) {
+            if (!db) return;
+            const element = document.getElementById(elementId);
+            element.innerHTML = '<div class="text-center text-gray-500">Carregando...</div>';
+            try {
+                const docRef = doc(db, `artifacts/${appId}/public/boletim`, `culto${cultoType}`);
+                const docSnap = await getDoc(docRef);
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    let htmlContent = '';
+                    const order = [
+                        'preludio', 'oracao', 'avisos', 'canticos', 'momentoLouvor', 'saudacoes', 'leituraBiblica',
+                        'momentoLouvor2', 'dizimosOfertas', 'oracaoAgradecimento', 'oracaoGratidao', 'mensagem',
+                        'momentoLouvorCantor', 'oracaoPedidos', 'oracaoBencao', 'posludio'
+                    ];
+
+                    order.forEach(item => {
+                        if (data[item]) {
+                            if (item === 'leituraBiblica') {
+                                htmlContent += `<li><h3 class="font-bold text-xl mb-2 mt-4 text-gray-800">${data[item]}</h3>`;
+                                htmlContent += `<div class="mb-4">`;
+                                htmlContent += `<p class="bible-verse-dirigente">Dirigente: ${data.dirigente || ''}</p>`;
+                                htmlContent += `<p class="bible-verse-todos">Todos: ${data.todos || ''}</p>`;
+                                htmlContent += `<p class="text-sm text-gray-500 mt-2">${data.fonte || ''}</p>`;
+                                htmlContent += `</div></li>`;
+                            } else {
+                                htmlContent += `<li>${data[item]}</li>`;
+                            }
+                        }
+                    });
+                    element.innerHTML = htmlContent;
+                } else {
+                    element.innerHTML = '<li class="text-gray-500">Nenhuma informação disponível para este culto.</li>';
+                }
+            } catch (e) {
+                console.error(`Erro ao carregar culto ${cultoType}:`, e);
+                element.innerHTML = `<li class="text-red-600">Erro ao carregar: ${e.message}</li>`;
+            }
+        }
+
+        async function loadSongs(collectionName, listId) {
+            if (!db) return;
+            const listElement = document.getElementById(listId);
+            listElement.innerHTML = '<div class="text-center text-gray-500">Carregando cânticos...</div>';
+            try {
+                const q = query(collection(db, `artifacts/${appId}/public/${collectionName}`));
+                const querySnapshot = await getDocs(q);
+                listElement.innerHTML = ''; // Clear loading message
+
+                if (querySnapshot.empty) {
+                    listElement.innerHTML = '<div class="text-center text-gray-500">Nenhum cântico cadastrado.</div>';
+                    return;
+                }
+
+                querySnapshot.forEach((docSnap) => {
+                    const song = docSnap.data();
+                    listElement.innerHTML += `
+                        <details class="mb-4 p-4 border border-gray-200 rounded-lg">
+                            <summary class="font-bold text-xl cursor-pointer text-gray-800">${song.title || 'Cântico sem Título'}</summary>
+                            <div class="song-lyrics mt-4">
+                                ${song.lyrics ? song.lyrics.split('\n').map(line => `<p>${line}</p>`).join('') : '<p>Letra não disponível.</p>'}
+                            </div>
+                        </details>
+                    `;
+                });
+            } catch (e) {
+                console.error(`Erro ao carregar cânticos de ${collectionName}:`, e);
+                listElement.innerHTML = `<div class="text-center text-red-600">Erro ao carregar cânticos: ${e.message}</div>`;
+            }
+        }
+
+        async function loadAgendaSemana() {
+            if (!db) return;
+            const element = document.getElementById('agendaSemanaList');
+            element.innerHTML = '<div class="text-center text-gray-500">Carregando agenda...</div>';
+            try {
+                const docRef = doc(db, `artifacts/${appId}/public/agenda`, 'agendaSemana');
+                const docSnap = await getDoc(docRef);
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    let htmlContent = '';
+                    const agendaItems = {
+                        domingo: 'Culto Domingo',
+                        ebd: 'EBD',
+                        quinta: 'Cultos Quinta',
+                        ceia: 'Ceia',
+                        segunda: 'Segunda',
+                        terca: 'Terça',
+                        quarta: 'Quarta',
+                        sexta: 'Sexta',
+                        sabado: 'Sábado'
+                    };
+
+                    for (const key in agendaItems) {
+                        if (data[key]) {
+                            htmlContent += `<li>${agendaItems[key]}: ${data[key]}</li>`;
+                        }
+                    }
+                    element.innerHTML = htmlContent;
+                } else {
+                    element.innerHTML = '<li class="text-gray-500">Nenhuma agenda disponível.</li>';
+                }
+            } catch (e) {
+                console.error("Erro ao carregar agenda:", e);
+                element.innerHTML = `<li class="text-red-600">Erro ao carregar agenda: ${e.message}</li>`;
+            }
+        }
+
+        async function loadAllData() {
+            await loadCultoOrder('Noite', 'order-noite');
+            await loadCultoOrder('Manha', 'order-manha');
+            // Leitura Bíblica é carregada dentro de loadCultoOrder, mas os dados da leitura em si vêm de um doc separado.
+            // Precisamos garantir que os dados da leitura bíblica estejam disponíveis para ambos os cultos.
+            // Uma forma é carregar o documento da leitura bíblica uma vez e passá-lo para a função de culto,
+            // ou garantir que o admin salve o dirigente/todos/fonte diretamente no documento do culto se for por culto.
+            // Para simplificar, vou carregar o documento de leitura bíblica separadamente e assumir que os campos
+            // 'dirigente', 'todos', 'fonte' no documento 'cultoNoite' e 'cultoManha' serão preenchidos
+            // com os dados da leitura bíblica. O admin app já salva esses campos diretamente nos documentos de culto.
+
+            await loadSongs('canticos_congregacionais', 'canticosCongregacionaisList');
+            await loadSongs('cantor_cristao', 'cantorCristaoList');
+            await loadSongs('musicas_louvor', 'musicasLouvorList');
+            await loadAgendaSemana();
+        }
+
+        // --- Funções de Interatividade (Fonte e Rolagem Automática) ---
+        let currentFontSize = 16; // Default font size in pixels
+        let autoScrollInterval;
+
+        function adjustFontSize(change) {
+            const lyricsElements = document.querySelectorAll('.song-lyrics');
+            currentFontSize += change;
+            if (currentFontSize < 10) currentFontSize = 10; // Minimum font size
+            if (currentFontSize > 30) currentFontSize = 30; // Maximum font size
+
+            lyricsElements.forEach(element => {
+                element.style.fontSize = `${currentFontSize}px`;
+            });
+        }
+
+        function toggleAutoScroll() {
+            if (autoScrollInterval) {
+                clearInterval(autoScrollInterval);
+                autoScrollInterval = null;
+                console.log("Rolagem automática parada.");
+            } else {
+                let scrollSpeed = 1; // Pixels per interval
+                let scrollIntervalTime = 50; // Milliseconds
+
+                autoScrollInterval = setInterval(() => {
+                    window.scrollBy(0, scrollSpeed);
+                    if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight) {
+                        clearInterval(autoScrollInterval);
+                        autoScrollInterval = null;
+                        console.log("Fim da página, rolagem automática parada.");
+                    }
+                }, scrollIntervalTime);
+                console.log("Rolagem automática iniciada.");
+            }
+        }
+    </script>
+</body>
+</html>
