@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Boletim do Culto Semanal</title>
+    
+    <!-- Chosen Palette: Neutros quentes (Gray/Slate) com acentos em Índigo e Teal. -->
+    <!-- Application Structure Plan: A single-page application with a fixed top navigation bar for quick access to different sections (Culto Noite, Culto Manhã, Cânticos Congregacionais, Cantor Cristão, Músicas de Louvor, Agenda da Semana). The content is organized into distinct, scrollable sections. Song lyrics are presented within collapsible/expandable `details` elements to manage page length. Interactive controls for font size and auto-scroll are provided for song lyrics. A dedicated print button and print-specific CSS ensure optimal output for physical copies. This structure was chosen to provide an intuitive, easy-to-navigate experience for digital consumption while retaining full printability. -->
+    <!-- Visualization & Content Choices: 
+        - Report Info: Service orders (Morning/Evening). Goal: Present the flow of the service clearly. Viz/Method: Ordered lists within distinct sections. Interaction: Direct scrolling to sections via navigation. Justification: Simple, sequential presentation is best for a service order. Library: None (HTML/CSS).
+        - Report Info: Bible reading. Goal: Display responsive reading with roles. Viz/Method: Structured text with `div` elements for roles. Interaction: None (static text). Justification: Clear visual separation of roles enhances readability. Library: None (HTML/CSS).
+        - Report Info: Song lyrics (Congregational, Cantor Cristão, Louvor). Goal: Provide lyrics with readability tools. Viz/Method: Collapsible text blocks (`details`/`summary`). Interaction: Expand/collapse, font size adjustment (JS), auto-scroll (JS). Justification: Collapsible sections prevent overwhelming page length, while font size and auto-scroll enhance accessibility and usability during worship. Library: Vanilla JS.
+        - Report Info: Weekly agenda. Goal: Inform about weekly events. Viz/Method: Simple list. Interaction: None. Justification: A straightforward list is efficient for presenting schedule information. Library: None (HTML/CSS).
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f9fafb; /* gray-50 */
+            color: #374151; /* gray-700 */
+        }
+        .container {
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .section-card {
+            background-color: #ffffff;
+            border-radius: 1rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+        .bible-verse-dirigente {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: #1f2937; /* gray-800 */
+        }
+        .bible-verse-todos {
+            font-style: italic;
+            margin-top: 0.5rem;
+            color: #4b5563; /* gray-600 */
+        }
+        .song-lyrics p {
+            margin-bottom: 0.5rem;
+            line-height: 1.5;
+        }
+        .song-lyrics h4 {
+            font-weight: 600;
+            margin-top: 1rem;
+            margin-bottom: 0.5rem;
+            color: #1f2937;
+        }
+        .song-controls button {
+            background-color: #4f46e5; /* indigo-600 */
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s ease-in-out;
+            border: none;
+        }
+        .song-controls button:hover {
+            background-color: #4338ca; /* indigo-700 */
+        }
+        .song-lyrics {
+            font-size: 1rem; /* Default font size */
+            transition: font-size 0.2s ease-in-out;
+        }
+
+        /* Print styles */
+        @media print {
+            body {
+                background-color: #ffffff;
+                color: #000000;
+                margin: 0;
+                padding: 0;
+            }
+            header, .print-button-container, .song-controls {
+                display: none; /* Hide navigation and controls */
+            }
+            .section-card {
+                box-shadow: none;
+                border: 1px solid #e5e7eb; /* Light border for separation */
+                margin-bottom: 1rem;
+                page-break-inside: avoid; /* Avoid breaking cards across pages */
+            }
+            h1, h2, h3, h4 {
+                color: #000000 !important; /* Ensure black text for titles */
+            }
+            a {
+                text-decoration: none; /* Remove underlines from links */
+                color: #000000; /* Black links */
+            }
+            .song-lyrics {
+                font-size: 12pt !important; /* Standard print font size */
+            }
+            .bible-verse-dirigente, .bible-verse-todos {
+                color: #000000 !important;
+            }
+            .list-disc li::before {
+                color: #000000 !important;
+            }
+        }
+    </style>
+</head>
+<body class="p-4">
+    <header class="bg-white/80 backdrop-blur-lg shadow-sm sticky top-0 z-50 py-3">
+        <nav class="container mx-auto flex flex-wrap justify-center md:justify-between items-center text-sm md:text-base">
+            <h1 class="text-xl md:text-2xl font-bold text-indigo-700 mb-2 md:mb-0">Boletim do Culto 📖</h1>
+            <div class="flex flex-wrap justify-center gap-x-4 gap-y-2">
+                <a href="#culto-noite" class="text-gray-700 hover:text-indigo-700 font-medium transition-colors">Culto Noite</a>
+                <a href="#culto-manha" class="text-gray-700 hover:text-indigo-700 font-medium transition-colors">Culto Manhã</a>
+                <a href="#canticos-congregacionais" class="text-gray-700 hover:text-indigo-700 font-medium transition-colors">Cânticos</a>
+                <a href="#cantor-cristao" class="text-gray-700 hover:text-indigo-700 font-medium transition-colors">Cantor Cristão</a>
+                <a href="#musicas-louvor" class="text-gray-700 hover:text-indigo-700 font-medium transition-colors">Louvor</a>
+                <a href="#agenda-semana" class="text-gray-700 hover:text-indigo-700 font-medium transition-colors">Agenda</a>
+            </div>
+        </nav>
+    </header>
+
+    <main class="container mt-8">
+
+        <!-- Boletim do Culto Noite -->
+        <section id="culto-noite" class="section-card">
+            <h2 class="text-3xl font-bold text-center mb-6 text-indigo-700">Boletim do Culto Noite 🌙</h2>
+            <ol class="list-decimal list-inside space-y-2 text-lg">
+                <li>Prelúdio - instrumental</li>
+                <li>Oração</li>
+                <li>Avisos e comunicações</li>
+                <li>Cânticos congregacionais</li>
+                <li>Momento de louvor - Grupo de louvor/Coral/individual</li>
+                <li>Saudações aos visitantes</li>
+                <li>
+                    <h3 class="font-bold text-xl mb-2 mt-4 text-gray-800">Leitura Bíblica Responsiva - Habacuque 3:1-3 - Versão da Bíblia NAA</h3>
+                    <div class="mb-4">
+                        <p class="bible-verse-dirigente">Dirigente: 3 1Oração do profeta Habacuque sob a forma de canto.</p>
+                        <p class="bible-verse-dirigente ml-4">2 Senhor, tenho ouvido a tua fama,</p>
+                        <p class="bible-verse-dirigente ml-4">e me sinto alarmado.</p>
+                        <p class="bible-verse-dirigente ml-4">Aviva a tua obra, ó Senhor,</p>
+                        <p class="bible-verse-dirigente ml-4">no decorrer dos anos,</p>
+                        <p class="bible-verse-dirigente ml-4">e, no decurso dos anos, faze-a conhecida.</p>
+                        <p class="bible-verse-dirigente ml-4">Na tua ira, lembra-te da misericórdia.</p>
+                        <p class="bible-verse-todos">Todos: 3 Deus vem de Temã,</p>
+                        <p class="bible-verse-todos ml-4">o Santo vem do monte Parã.</p>
+                        <p class="bible-verse-todos ml-4">A sua glória cobre os céus,</p>
+                        <p class="bible-verse-todos ml-4">e a terra se enche do seu louvor.</p>
+                        <p class="text-sm text-gray-500 mt-2">João Ferreira de Almeida, trad., Nova Almeida Atualizada, Edição Revista e Atualizada®, 3a edição (Barueri, SP: Sociedade Bíblica do Brasil, 2017), Hc 3.1–3.</p>
+                    </div>
+                </li>
+                <li>Momento de Louvor - Grupo de louvor/Coral/Individual</li>
+                <li>Dedicação de Dízimos e ofertas</li>
+                <li>Oração de agradecimento aos dízimos e ofertas</li>
+                <li>Oração de gratidão</li>
+                <li>Mensagem - pastor</li>
+                <li>Momento de Louvor - Cantor Cristão</li>
+                <li>Oração dos pedidos de oração</li>
+                <li>Oração e bênção apostólica</li>
+                <li>Poslúdio</li>
+            </ol>
+        </section>
+
+        <!-- Boletim do Culto Manhã -->
+        <section id="culto-manha" class="section-card">
+            <h2 class="text-3xl font-bold text-center mb-6 text-indigo-700">Boletim do Culto Manhã ☀️</h2>
+            <ol class="list-decimal list-inside space-y-2 text-lg">
+                <li>Prelúdio - instrumental</li>
+                <li>Oração</li>
+                <li>Avisos e comunicações</li>
+                <li>Cânticos congregacionais</li>
+                <li>Momento de louvor - Grupo de louvor/Coral/individual</li>
+                <li>Saudações aos visitantes</li>
+                <li>
+                    <h3 class="font-bold text-xl mb-2 mt-4 text-gray-800">Leitura Bíblica Responsiva - Habacuque 3:1-3 - Versão da Bíblia NAA</h3>
+                    <div class="mb-4">
+                        <p class="bible-verse-dirigente">Dirigente: 3 1Oração do profeta Habacuque sob a forma de canto.</p>
+                        <p class="bible-verse-dirigente ml-4">2 Senhor, tenho ouvido a tua fama,</p>
+                        <p class="bible-verse-dirigente ml-4">e me sinto alarmado.</p>
+                        <p class="bible-verse-dirigente ml-4">Aviva a tua obra, ó Senhor,</p>
+                        <p class="bible-verse-dirigente ml-4">no decorrer dos anos,</p>
+                        <p class="bible-verse-dirigente ml-4">e, no decurso dos anos, faze-a conhecida.</p>
+                        <p class="bible-verse-dirigente ml-4">Na tua ira, lembra-te da misericórdia.</p>
+                        <p class="bible-verse-todos">Todos: 3 Deus vem de Temã,</p>
+                        <p class="bible-verse-todos ml-4">o Santo vem do monte Parã.</p>
+                        <p class="bible-verse-todos ml-4">A sua glória cobre os céus,</p>
+                        <p class="bible-verse-todos ml-4">e a terra se enche do seu louvor.</p>
+                        <p class="text-sm text-gray-500 mt-2">João Ferreira de Almeida, trad., Nova Almeida Atualizada, Edição Revista e Atualizada®, 3a edição (Barueri, SP: Sociedade Bíblica do Brasil, 2017), Hc 3.1–3.</p>
+                    </div>
+                </li>
+                <li>Momento de Louvor - Grupo de louvor/Coral/Individual</li>
+                <li>Dedicação de Dízimos e ofertas</li>
+                <li>Oração de agradecimento aos dízimos e ofertas</li>
+                <li>Oração de gratidão</li>
+                <li>Mensagem - pastor</li>
+                <li>Momento de Louvor - Cantor Cristão</li>
+                <li>Oração dos pedidos de oração</li>
+                <li>Oração e bênção apostólica</li>
+                <li>Poslúdio</li>
+            </ol>
+        </section>
+
+        <!-- Controles de Cânticos (globais para as seções de cânticos) -->
+        <div class="section-card song-controls flex flex-wrap justify-center gap-4 mb-8">
+            <button onclick="adjustFontSize(1)">A+ Fonte</button>
+            <button onclick="adjustFontSize(-1)">A- Fonte</button>
+            <button onclick="toggleAutoScroll()">Rolagem Automática</button>
+            <button onclick="window.print()">Imprimir Boletim</button>
+        </div>
+
+        <!-- Cânticos Congregacionais -->
+        <section id="canticos-congregacionais" class="section-card">
+            <h2 class="text-3xl font-bold text-center mb-6 text-indigo-700">Cânticos Congregacionais 🎶</h2>
+            
+            <details class="mb-4 p-4 border border-gray-200 rounded-lg">
+                <summary class="font-bold text-xl cursor-pointer text-gray-800">A Alegria Está no Coração</summary>
+                <div class="song-lyrics mt-4">
+                    <p>A alegria está no coração</p>
+                    <p>De quem já conhece a Jesus</p>
+                    <p>A verdadeira paz só tem aquele</p>
+                    <p>Que já conhece a Jesus</p>
+                    <p class="mt-4">O sentimento mais precioso</p>
+                    <p>Que vem do nosso Senhor</p>
+                    <p>É o amor que só tem</p>
+                    <p>Quem já conhece a Jesus</p>
+                    <p class="mt-4">A alegria está no coração</p>
+                    <p>De quem já conhece a Jesus</p>
+                    <p>A verdadeira paz só tem aquele</p>
+                    <p>Que já conhece a Jesus</p>
+                    <p class="mt-4">O sentimento mais precioso</p>
+                    <p>Que vem do nosso Senhor</p>
+                    <p>É o amor que só tem</p>
+                    <p>Quem já conhece a Jesus</p>
+                </div>
+            </details>
+
+            <details class="mb-4 p-4 border border-gray-200 rounded-lg">
+                <summary class="font-bold text-xl cursor-pointer text-gray-800">Posso Pisar Numa Tropa</summary>
+                <div class="song-lyrics mt-4">
+                    <p>Posso pisar numa tropa e saltar as muralhas</p>
+                    <p>Aleluia, aleluia!</p>
+                    <p>Posso pisar numa tropa e saltar as muralhas</p>
+                    <p>Aleluia, aleluia, aleluia, aleluia!</p>
+                    <p class="mt-4">Ele é a rocha da minha salvação</p>
+                    <p>Com Ele, não há mais condenação</p>
+                    <p>Posso pisar numa tropa e saltar as muralhas</p>
+                    <p>Aleluia!</p>
+                    <p class="mt-4">Aleluia, aleluia, aleluia, aleluia</p>
+                    <p>Aleluia, aleluia, aleluia, aleluia</p>
+                    <p class="mt-4">O sentimento mais precioso</p>
+                    <p>Que vem do nosso Senhor</p>
+                    <p>É o amor que só tem</p>
+                    <p>Quem já conhece a Jesus</p>
+                    <p>É o amor que só tem</p>
+                    <p>Quem já conhece a Jesus</p>
+                    <p>É o amor que só tem</p>
+                    <p>Quem já conhece a Jesus</p>
+                </div>
+            </details>
+
+            <details class="mb-4 p-4 border border-gray-200 rounded-lg">
+                <summary class="font-bold text-xl cursor-pointer text-gray-800">Ao Único</summary>
+                <div class="song-lyrics mt-4">
+                    <p>Ao único que é digno de receber</p>
+                    <p>A honra e a glória</p>
+                    <p>A força e o poder</p>
+                    <p>Ao rei, eterno, imortal</p>
+                    <p>Invisível, mas real</p>
+                    <p>A Ele ministramos o louvor</p>
+                    <p class="mt-4">Ao único que é digno de receber</p>
+                    <p>A honra e a glória</p>
+                    <p>A força e o poder</p>
+                    <p>Ao rei, eterno, imortal</p>
+                    <p>Invisível, mas real</p>
+                    <p>A Ele ministramos o louvor</p>
+                    <p class="mt-4">Coroamos a ti, ó Rei Jesus</p>
+                    <p>Coroamos a ti, ó Rei Jesus</p>
+                    <p>Adoramos o teu nome</p>
+                    <p>Nos rendemos a teus pés</p>
+                    <p>Consagramos todo nosso ser a ti</p>
+                    <p>Consagramos todo nosso ser a ti</p>
+                    <p class="mt-4">Ao único que é digno de receber</p>
+                    <p>A honra e a glória</p>
+                    <p>A força e o poder</p>
+                    <p>Ao rei, eterno, imortal</p>
+                    <p>Invisível, mas real</p>
+                    <p>A Ele ministramos o louvor</p>
+                    <p class="mt-4">Coroamos a ti, ó Rei Jesus</p>
+                    <p>Coroamos a ti, ó Rei Jesus</p>
+                    <p>Adoramos o teu nome</p>
+                    <p>Nos rendemos a teus pés</p>
+                    <p>Consagramos todo nosso ser a ti</p>
+                    <p>Consagramos todo nosso ser a ti</p>
+                </div>
+            </details>
+        </section>
+
+        <!-- Lista do Cantor Cristão -->
+        <section id="cantor-cristao" class="section-card">
+            <h2 class="text-3xl font-bold text-center mb-6 text-indigo-700">Cantor Cristão 📖🎶</h2>
+            
+            <details class="mb-4 p-4 border border-gray-200 rounded-lg">
+                <summary class="font-bold text-xl cursor-pointer text-gray-800">46 - Jesus Me Transformou</summary>
+                <div class="song-lyrics mt-4">
+                    <p>Eu, perdido pecador</p>
+                    <p>Longe do meu Jesus</p>
+                    <p>Já me achava sem vigor</p>
+                    <p>A perecer sem luz</p>
+                    <p>Meu estado Cristo viu</p>
+                    <p>Dando-me sua mão</p>
+                    <p>E salvar-me conseguiu</p>
+                    <p>Da perdição</p>
+                    <p class="mt-4">Cristo me amou, e me livrou</p>
+                    <p>O seu imenso amor</p>
+                    <p>Me transformou</p>
+                    <p>Foi seu poder, o seu querer</p>
+                    <p>Sim Cristo, o Salvador</p>
+                    <p>Me transformou</p>
+                    <p class="mt-4">Minha vida, todo o ser</p>
+                    <p>Quero-Lhe consagrar</p>
+                    <p>A seu lado vou viver</p>
+                    <p>O seu amor cantar</p>
+                    <p>A mensagem transmitir</p>
+                    <p>Aos que perdidos são</p>
+                    <p>Venham todos já fruir</p>
+                    <p>A salvação</p>
+                    <p class="mt-4">Cristo me amou, e me livrou</p>
+                    <p>O seu imenso amor</p>
+                    <p>Me transformou</p>
+                    <p>Foi seu poder, o seu querer</p>
+                    <p>Sim Cristo, o Salvador</p>
+                    <p>Me transformou</p>
+                </div>
+            </details>
+
+            <details class="mb-4 p-4 border border-gray-200 rounded-lg">
+                <summary class="font-bold text-xl cursor-pointer text-gray-800">126 - Bendito Cordeiro</summary>
+                <div class="song-lyrics mt-4">
+                    <p>Bendito seja o Cordeiro</p>
+                    <p>Que na cruz por nós padeceu!</p>
+                    <p>Bendito seja o seu sangue</p>
+                    <p>Que por nós pecadores verteu!</p>
+                    <p class="mt-4">Eis, nesse sangue lavado,</p>
+                    <p>Com roupas tão alvas são,</p>
+                    <p>Os pecadores remidos,</p>
+                    <p>Que perante Deus hoje estão.</p>
+                    <p class="mt-4">Alvo mais que a neve!</p>
+                    <p>Alvo mais que a neve!</p>
+                    <p>Sim, nesse sangue lavado,</p>
+                    <p>Mais alvo que a neve serei!</p>
+                    <p class="mt-4">Alvo mais que a neve!</p>
+                    <p>Alvo mais que a neve!</p>
+                    <p>Sim, nesse sangue lavado,</p>
+                    <p>Mais alvo que a neve serei!</p>
+                    <p class="mt-4">Eis, nessas chagas, pureza</p>
+                    <p>Para o mais torpe pecador!</p>
+                    <p>Pois que, mais alvo que a neve</p>
+                    <p>O teu sangue torna, Senhor!</p>
+                    <p class="mt-4">Alvo mais que a neve!</p>
+                    <p>Alvo mais que a neve!</p>
+                    <p>Sim, nesse sangue lavado,</p>
+                    <p>Mais alvo que a neve serei!</p>
+                    <p class="mt-4">Se nós a ti confessarmos,</p>
+                    <p>E seguirmos na tua luz,</p>
+                    <p>Tu não somente perdoas,</p>
+                    <p>Purificas também, ó Jesus!</p>
+                    <p class="mt-4">Sim, e de todo pecado!</p>
+                    <p>Que maravilha desse amor!</p>
+                    <p>Pois que, mais alvos que a neve</p>
+                    <p>O Teu sangue nos torna, Senhor!</p>
+                    <p class="mt-4">Alvo mais que a neve!</p>
+                    <p>Alvo mais que a neve!</p>
+                    <p>Sim, nesse sangue lavado,</p>
+                    <p>Mais alvo que a neve serei!</p>
+                </div>
+            </details>
+        </section>
+
+        <!-- Lista das Músicas do Louvor -->
+        <section id="musicas-louvor" class="section-card">
+            <h2 class="text-3xl font-bold text-center mb-6 text-indigo-700">Músicas do Louvor 🎤</h2>
+            
+            <details class="mb-4 p-4 border border-gray-200 rounded-lg">
+                <summary class="font-bold text-xl cursor-pointer text-gray-800">Pois Eu Sei</summary>
+                <div class="song-lyrics mt-4">
+                    <p>Situações nessa vida me fazem sentir</p>
+                    <p>Que não sou forte a ponto de até resistir</p>
+                    <p>Nestes terríveis momentos, os maus pensamentos me querem levar</p>
+                    <p>A um extremo de vida que meu equilíbrio se deixa enganar</p>
+                    <p class="mt-4">Instantes que se prolongam, tentando mudar</p>
+                    <p>Tudo o que já se fez de novo, pois Cristo mudou</p>
+                    <p>Tentando hoje trazer o que eu tento esquecer</p>
+                    <p>Sou vencedor e ninguém poderá me deter</p>
+                    <p class="mt-4">Pois eu sei que jamais eu provado serei</p>
+                    <p>Além do que eu possa suportar</p>
+                    <p>E se ainda, eu cair e pensar que é o fim</p>
+                    <p>Jesus me ergue e segue junto a mim</p>
+                    <p class="mt-4">Instantes que se prolongam, tentando mudar</p>
+                    <p>Tudo o que já se fez de novo, pois Cristo mudou</p>
+                    <p>Tentando hoje trazer o que eu tento esquecer</p>
+                    <p>Sou vencedor e ninguém poderá me deter</p>
+                    <p class="mt-4">Pois eu sei que jamais eu provado serei</p>
+                    <p>Além do que eu possa suportar</p>
+                    <p>E se ainda, eu cair e pensar que é o fim</p>
+                    <p>Jesus me ergue e segue junto a mim</p>
+                    <p class="mt-4">Pois eu sei que jamais eu provado serei</p>
+                    <p>Além do que eu possa suportar</p>
+                    <p>E se ainda, eu cair e pensar que é o fim</p>
+                    <p>Jesus me ergue e segue junto a mim</p>
+                    <p class="mt-4">Jesus me ergue e segue, sim</p>
+                    <p>Jesus me ergue e segue, sim</p>
+                    <p>Jesus me ergue e segue junto a mim</p>
+                    <p class="mt-4">Jesus me ergue e segue, sim</p>
+                    <p>Jesus me ergue e segue, sim</p>
+                    <p>Jesus me ergue e segue junto a mim</p>
+                    <p class="mt-4">Jesus me ergue e segue, sim</p>
+                    <p>Jesus me ergue e segue, sim</p>
+                    <p>Jesus me ergue e segue junto a mim</p>
+                </div>
+            </details>
+        </section>
+
+        <!-- Agenda da Semana -->
+        <section id="agenda-semana" class="section-card">
+            <h2 class="text-3xl font-bold text-center mb-6 text-indigo-700">Agenda da Semana 🗓️</h2>
+            <ul class="list-disc list-inside space-y-2 text-lg">
+                <li>Culto Domingo: 10:30h e 17:30h</li>
+                <li>EBD: Domingo 9h às 10h30</li>
+                <li>Cultos Quinta: 19:30h</li>
+                <li>Ceia: [Informar data e horário, se aplicável]</li>
+                <li>Outras informações:</li>
+                <ul class="list-circle list-inside ml-6">
+                    <li>Segunda: [Atividade]</li>
+                    <li>Terça: [Atividade]</li>
+                    <li>Quarta: [Atividade]</li>
+                    <li>Sexta: [Atividade]</li>
+                    <li>Sábado: [Atividade]</li>
+                </ul>
+            </ul>
+        </section>
+
+    </main>
+
+    <footer class="text-center py-8 text-gray-500 text-sm">
+        <p>Boletim do Culto Web - Criado para a comunidade.</p>
+    </footer>
+
+    <script>
+        let currentFontSize = 16; // Default font size in pixels
+        let autoScrollInterval;
+
+        function adjustFontSize(change) {
+            const lyricsElements = document.querySelectorAll('.song-lyrics');
+            currentFontSize += change;
+            if (currentFontSize < 10) currentFontSize = 10; // Minimum font size
+            if (currentFontSize > 30) currentFontSize = 30; // Maximum font size
+
+            lyricsElements.forEach(element => {
+                element.style.fontSize = `${currentFontSize}px`;
+            });
+        }
+
+        function toggleAutoScroll() {
+            if (autoScrollInterval) {
+                clearInterval(autoScrollInterval);
+                autoScrollInterval = null;
+                // Optional: Show a message that auto-scroll is stopped
+                console.log("Rolagem automática parada.");
+            } else {
+                // Get the current scroll position
+                const startScrollY = window.scrollY;
+                let scrollSpeed = 1; // Pixels per interval
+                let scrollIntervalTime = 50; // Milliseconds
+
+                autoScrollInterval = setInterval(() => {
+                    window.scrollBy(0, scrollSpeed);
+                    // Stop if end of page is reached (optional, can loop or stop)
+                    if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight) {
+                        clearInterval(autoScrollInterval);
+                        autoScrollInterval = null;
+                        console.log("Fim da página, rolagem automática parada.");
+                    }
+                }, scrollIntervalTime);
+                console.log("Rolagem automática iniciada.");
+            }
+        }
+    </script>
+</body>
+</html>
